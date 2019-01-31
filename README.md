@@ -1,6 +1,6 @@
 # adInfoHRL
 
-This repository contains a Keras implementation of Hierarchical Reinforcement Learning via Advantage-Weighted Information Maximization (adInfoHRL).
+This repository contains a Keras implementation of Hierarchical Reinforcement Learning via Advantage-Weighted Information Maximization (adInfoHRL). [links: [OpenReview](https://openreview.net/forum?id=Hyl_vjC5KQ), [arXiv](https://arxiv.org/abs/1901.01365)]
 A Keras implementation of TD3 is also contained.
 
 ## Requirements
