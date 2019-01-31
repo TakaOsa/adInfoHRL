@@ -1,9 +1,5 @@
 import tensorflow as tf
-
 import numpy as np
-import gym
-from gym import wrappers
-#import mujoco_py
 
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Input, merge, Lambda, Activation
@@ -14,14 +10,7 @@ import keras.backend as K
 from keras import metrics
 
 import numpy.matlib
-from scipy.special import logsumexp
-from scipy.stats import multivariate_normal
 
-# from replay_buffer import ReplayBuffer
-from replay_buffer_weight import ReplayBufferWeight
-
-import argparse
-import pprint as pp
 
 initializer = "glorot_uniform"  # Weight initilizer
 final_initializer = RandomUniform(minval = -0.003, maxval = 0.003)  # Weight initializer for the final layer
@@ -107,20 +96,6 @@ class adInfoHRLTD3(object):
         # ===================================================================== #
         #                               Actor Model                             #
         # ===================================================================== #
-
-        # self.actor_state_input, self.actor_out, \
-        #                 self.actor_model, self.actor_weights = self.create_actor_model()
-
-        # self.actor_target_state_input, self.actor_target_out, \
-                        # self.target_actor_model, self.actor_target_weights = self.create_actor_model()
-
-        # This gradient will be provided by the critic network
-        # self.action_gradient = tf.placeholder(tf.float32, [None, self.action_dim])
-        #
-        # self.actor_params_grad = tf.gradients(self.actor_model.output, self.actor_weights, -self.action_gradient)
-        # grads = zip(self.actor_params_grad, self.actor_weights)
-        #
-        # self.actor_optimize = tf.train.AdamOptimizer(self.actor_lr).apply_gradients(grads)
 
         self.actor_state_input_list =[]
         self.actor_out_list =[]
@@ -213,8 +188,6 @@ class adInfoHRLTD3(object):
     # ========================================================================= #
     def create_actor_model(self):
         state_input = Input(shape=(self.state_dim,))
-        # option_input = Input(shape=(self.option_num,))
-        # input = concatenate([state_input, option_input])
 
         h1 = Dense(self.hidden_dim[0], activation='relu',  kernel_initializer=initializer)(state_input)
         h2 = Dense(self.hidden_dim[1], activation='relu',  kernel_initializer=initializer)(h1)
@@ -259,8 +232,6 @@ class adInfoHRLTD3(object):
         out_enc = Enc_3(h2_option)
 
         output_option = Activation('softmax')(out_enc)
-
-        # model = Model(input=[state_input, action_input], output=[output_option, output_option])
 
         x2 = Lambda(self._add_normal)(input_concat)
         input_noise = Enc_1(x2)
@@ -347,9 +318,6 @@ class adInfoHRLTD3(object):
         else:
             for i in range(n):
                 if i == 0:
-                    # print('options', options)
-                    # print('options.shape', options.shape)
-                    # print('action_list[options[i]]', action_list[int(options[i])])
                     action = action_list[int(options[i])][i, :]
                 else:
                     action = np.vstack((action, action_list[int(options[i])][i, :]))
@@ -376,16 +344,9 @@ class adInfoHRLTD3(object):
         else:
             for i in range(n):
                 if i == 0:
-                    # print('options', options)
-                    # print('options.shape', options.shape)
-                    # print('action_list[options[i]]', action_list[int(options[i])])
                     action = action_list[int(options[i])][i, :]
                 else:
                     action = np.vstack((action, action_list[int(options[i])][i, :]))
-
-            # print('action', action)
-            # print('action_list[0]', action_list[0])
-            # print('options', options)
 
         return action
 
@@ -426,33 +387,12 @@ class adInfoHRLTD3(object):
             else:
                 Q_predict = np.concatenate((Q_predict, np.reshape(Q_predict_i, (-1, 1)) ), axis= 1)
 
-        # po = K.softmax(Q_predict)
-        # print('Q_predict', Q_predict)
         po = softmax(Q_predict)
         # print('po', po)
         state_values = weighted_mean_array(Q_predict, po)
         # print('state_values', state_values)
         return state_values
-    # def soft_value_func(self, inputs):
-    #     Q_predict = []
-    #     n = inputs.shape[0]
-    #     for i in range(int(self.option_num)):
-    #         option_one_hot = np.zeros((1, int(self.option_num)))
-    #         option_one_hot[0][i] = 1.
-    #         option_one_hot = np.tile(option_one_hot, (n, 1))
-    #         action_i = self.predict_actor_target(inputs, option_one_hot)
-    #         Q_predict_i, _= self.predict_critic_target(inputs, action_i)
-    #         if i ==0:
-    #             Q_predict = np.reshape( Q_predict_i, (-1, 1) )
-    #         else:
-    #             Q_predict = np.concatenate((Q_predict, np.reshape(Q_predict_i, (-1, 1)) ), axis= 1)
-    #
-    #     n = Q_predict.shape[0]
-    #     V_soft = logsumexp(Q_predict, axis=1) - np.log(self.option_num)
-    #     #print('Q_predict', Q_predict[0])
-    #     #print('V_soft[0]', V_soft[0])
-    #     #print('V_soft.shape', V_soft.shape)
-    #     return V_soft
+
 
     def softmax_option_target(self, inputs):
         Q_predict = []
@@ -460,8 +400,7 @@ class adInfoHRLTD3(object):
         for o in range(int(self.option_num)):
             action_i = self.predict_actor_target(inputs, o)
             Q_predict_i, _ = self.predict_critic_target(inputs, action_i)
-            # Q_predict_1, Q_predict_2= self.predict_critic_target(inputs, action_i)
-            # Q_predict_i = np.minimum(Q_predict_1, Q_predict_2)
+
             if o ==0:
                 Q_predict = np.reshape( Q_predict_i, (-1, 1) )
             else:
@@ -474,9 +413,7 @@ class adInfoHRLTD3(object):
         n = Q_predict.shape[0]
         #print('n', n)
         Q_softmax = Q_predict[  np.arange(n) , o_softmax.flatten()]
-        # print('Q_softmax.shape', Q_softmax.shape)
-        # for j in range(int(inputs.shape[0])):
-        #     Q_softmax.append(Q_predict[j][o_softmax[j]])
+
         return o_softmax, np.reshape(Q_softmax, (n, 1)), Q_predict
 
     def max_option(self, inputs):
@@ -485,8 +422,7 @@ class adInfoHRLTD3(object):
         for o in range(int(self.option_num)):
             action_i = self.predict_actor_target(inputs, o)
             Q_predict_i, _ = self.predict_critic_target(inputs, action_i)
-            # Q_predict_1, Q_predict_2= self.predict_critic_target(inputs, action_i)
-            # Q_predict_i = np.minimum(Q_predict_1, Q_predict_2)
+
             if o ==0:
                 Q_predict = np.reshape( Q_predict_i, (-1, 1) )
             else:
@@ -514,19 +450,14 @@ class adInfoHRLTD3(object):
         for o in range(self.option_num):
             self.actor_model_list[o].save(model_path + "%s_actor_option%d_iter%d.h5" % (expname, o, iteration))
 
-        # self.target_actor_model.save(model_path + "%s_target_actor_iter%d.h5" % (expname, iteration))
         self.critic_model.save(model_path + "%s_critic_iter%d.h5" % (expname, iteration))
-        # self.target_critic_model.save(model_path + "%s_target_critic_iter%d.h5" % (expname, iteration))
         self.option_model.save(model_path + "%s_option_mode_iter%d.h5" % (expname, iteration))
 
     def load_model(self, iteration=-1, expname="unknown", model_path = "./Model/separate/"):
         for o in range(self.option_num):
             self.actor_model_list[o].load_weights(model_path + "%s_actor_option%d_iter%d.h5" % (expname, o, iteration))
 
-        # self.actor_model.load_weights(model_path + "%s_actor_iter%d.h5" % (expname, iteration))
-        # self.target_actor_model.load_weights(model_path + "%s_target_actor_iter%d.h5" % (expname, iteration))
         self.critic_model.load_weights(model_path + "%s_critic_iter%d.h5" % (expname, iteration))
-        # self.target_critic_model.load_weights(model_path + "%s_target_critic_iter%d.h5" % (expname, iteration))
         self.option_model.load_weights(model_path + "%s_option_mode_iter%d.h5" % (expname, iteration))
         print(model_path + "%s_actor_I%d.h5" % (expname, iteration))
 

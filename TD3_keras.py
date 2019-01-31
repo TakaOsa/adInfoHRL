@@ -65,7 +65,6 @@ def update_policy(sess, env, env_test, args, agent, replay_buffer, action_noise,
             agent.update_actor_target_network()
             agent.update_critic_target_network()
 
-
 # ===========================
 #   Agent Training
 # ===========================
@@ -127,14 +126,6 @@ def train(sess, env, env_test, args, agent):
 
             state = state2
             ep_reward += reward
-
-            if total_step_cnt != int(args['total_step_num']) and total_step_cnt > 1e3 and total_step_cnt > policy_ite* int(args['policy_batch_size']):
-                update_num = total_step_cnt - trained_times_steps
-                trained_times_steps = total_step_cnt
-                print('update_num', update_num)
-                update_policy(sess, env, env_test, args, agent, replay_buffer, action_noise, update_num)
-                policy_ite +=1
-
             total_step_cnt += 1
 
             if total_step_cnt >= test_iter * int(args['sample_step_num']) or total_step_cnt == 1:
@@ -176,6 +167,12 @@ def train(sess, env, env_test, args, agent):
                 # episode_R.append(ep_reward)
                 break
 
+        if total_step_cnt != int(args['total_step_num']) and total_step_cnt > 1e3:
+            update_num = total_step_cnt - trained_times_steps
+            trained_times_steps = total_step_cnt
+            print('update_num', update_num)
+            update_policy(sess, env, env_test, args, agent, replay_buffer, action_noise, update_num)
+            policy_ite += 1
 
     return return_test
 
@@ -249,9 +246,6 @@ def main(args):
 
             if args['use_gym_monitor']:
                 env.monitor.close()
-
-
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='provide arguments for TD3 agent')

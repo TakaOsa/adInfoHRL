@@ -1,21 +1,13 @@
 import tensorflow as tf
-
 import numpy as np
 import gym
 from gym import wrappers
-#import mujoco_py
-
 from scipy.stats import multivariate_normal
-
-import keras.backend as K
-
-# from replay_buffer import ReplayBuffer
-from replay_buffer_weight import ReplayBufferWeight
-
 import argparse
 import pprint as pp
 
-from adInfoHRL_TD3_vat_separate_agent import adInfoHRLTD3, softmax
+from replay_buffer_weight import ReplayBufferWeight
+from adInfoHRL_agent import adInfoHRLTD3, softmax
 
 # ===========================
 #   Tensorflow Summary Ops
@@ -38,7 +30,6 @@ def update_option(sess, env, env_test, args, agent, replay_buffer, action_noise,
         s_batch, a_batch, r_batch, t_batch, s2_batch, p_batch = \
             replay_buffer.sample_batch(int(args['option_minibatch_size']))
 
-        # option_one_hot_batch = np.zeros((int(args['option_minibatch_size']), int(args['option_num'])))
         next_option_batch, _, Q_predict = agent.softmax_option_target(np.reshape(s2_batch, (-1, agent.state_dim)))
 
         noise_clip = 0.5
@@ -74,7 +65,6 @@ def update_policy(sess, env, env_test, args, agent, replay_buffer, action_noise,
         s_batch, a_batch, r_batch, t_batch, s2_batch, p_batch = \
             replay_buffer.sample_batch(int(args['minibatch_size']))
 
-        # option_one_hot_batch = np.zeros((int(args['minibatch_size']), int(args['option_num'])))
         next_option_batch, _, Q_predict = agent.softmax_option_target(np.reshape(s2_batch, (-1, agent.state_dim)))
 
         noise_clip = 0.5
@@ -109,7 +99,6 @@ def update_policy(sess, env, env_test, args, agent, replay_buffer, action_noise,
             s_batch, a_batch, r_batch, t_batch, s2_batch, p_batch = \
                 replay_buffer.sample_batch(int(args['policy_minibatch_size']))
 
-            # _, _, option_estimated = agent.predict_critic_target(s_batch, a_batch)
             option_estimated = agent.predict_option(s_batch, a_batch)
             option_estimated = np.reshape(option_estimated, (int(args['policy_minibatch_size']), int(args['option_num'])))
             max_indx = np.argmax(option_estimated, axis=1)
@@ -231,23 +220,6 @@ def train(sess, env, env_test, args, agent):
             if j == int(args['max_episode_len']) - 1:
                 T_end = True
 
-            if total_step_cnt != int(args['total_step_num']) and total_step_cnt > 1e3 \
-                    and total_step_cnt >= option_ite * int(args['option_batch_size']):
-                update_num = int(args['option_update_num'])
-                print('update option', update_num)
-                update_option(sess, env, env_test, args, agent, replay_buffer_onpolicy, action_noise, update_num)
-                option_ite = option_ite + 1
-                replay_buffer_onpolicy.clear()
-
-
-            if total_step_cnt != int(args['total_step_num']) and total_step_cnt > 1e3 and total_step_cnt >= policy_ite* int(args['policy_batch_size']):
-                update_num = total_step_cnt - trained_times_steps
-                trained_times_steps = total_step_cnt
-                print('update_num', update_num)
-                update_policy(sess, env, env_test, args, agent, replay_buffer, action_noise, update_num)
-                policy_ite = policy_ite + 1
-
-
             state = state2
             ep_reward += reward
 
@@ -279,6 +251,22 @@ def train(sess, env, env_test, args, agent):
                 print('| Reward: {:d} | Episode: {:d} | Total step num: {:d} |'.format(int(ep_reward), epi_cnt, total_step_cnt ))
                 # episode_R.append(ep_reward)
                 break
+
+        if total_step_cnt != int(args['total_step_num']) and total_step_cnt > 1e3 \
+                and total_step_cnt >= option_ite * int(args['option_batch_size']):
+            update_num = int(args['option_update_num'])
+            print('update option', update_num)
+            update_option(sess, env, env_test, args, agent, replay_buffer_onpolicy, action_noise, update_num)
+            option_ite = option_ite + 1
+            replay_buffer_onpolicy.clear()
+
+        if total_step_cnt != int(args['total_step_num']) and total_step_cnt > 1e3:
+            update_num = total_step_cnt - trained_times_steps
+            trained_times_steps = total_step_cnt
+            print('update_num', update_num)
+            update_policy(sess, env, env_test, args, agent, replay_buffer, action_noise, update_num)
+            # policy_ite = policy_ite + 1
+
 
     return return_test
 
@@ -382,7 +370,6 @@ if __name__ == '__main__':
     parser.add_argument('--minibatch-size', help='size of minibatch for minibatch-SGD', default=100)
     parser.add_argument('--policy-minibatch-size', help='batch for updating policy', default=400)
 
-    parser.add_argument('--policy-batch-size', help='batch size for updating policy', default=1000)
     parser.add_argument('--option-batch-size', help='batch size for updating option', default=5000)
     parser.add_argument('--option-update-num', help='iteration for updating option', default=4000)
     parser.add_argument('--option-minibatch-size', help='size of minibatch for minibatch-SGD', default=50)
@@ -413,10 +400,10 @@ if __name__ == '__main__':
     parser.add_argument('--max-episode-len', help='max length of 1 episode', default=1000)
     parser.add_argument('--render-env', help='render the gym env', action='store_true')
     parser.add_argument('--use-gym-monitor', help='record gym results', action='store_true')
-    parser.add_argument('--monitor-dir', help='directory for storing gym results', default='./results/gym_adInfoHRLTD3VAT')
-    parser.add_argument('--summary-dir', help='directory for storing tensorboard info', default='./results/tf_adInfoHRLTD3VAT')
+    parser.add_argument('--monitor-dir', help='directory for storing gym results', default='./results/gym_adInfoHRL')
+    parser.add_argument('--summary-dir', help='directory for storing tensorboard info', default='./results/tf_adInfoHRL')
     parser.add_argument('--result-file', help='file name for storing results from multiple trials',
-                        default='./results/trials/separate/trials_AdInfoHRLTD3VAT')
+                        default='./results/trials/trials_AdInfoHRL')
     parser.add_argument('--overwrite-result', help='flag for overwriting the trial file', default=True)
     parser.add_argument('--trial-num', help='number of trials', default=1)
     parser.add_argument('--trial-idx', help='index of trials', default=0)

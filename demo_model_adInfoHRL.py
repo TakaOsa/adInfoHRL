@@ -2,29 +2,13 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import tensorflow as tf
-
 tf.logging.set_verbosity(tf.logging.ERROR)
 
 import numpy as np
-import numpy.matlib
-from scipy.stats import multivariate_normal
 import gym
-from gym import wrappers
-
-from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, Input, merge, Lambda, Activation
-from keras.layers.merge import Add, Concatenate, concatenate
-from keras.optimizers import Adam
-import keras.backend as K
-from keras import metrics
-
-# from replay_buffer import ReplayBuffer
-from replay_buffer_weight import ReplayBufferWeight
 
 import argparse
 import pprint as pp
-
-# from adInfoHRL_TD3_agent import adInfoHRLTD3
 
 # ===========================
 #   Agent Test
@@ -48,7 +32,7 @@ def test(sess, env_test, args, agent, result_name):
         state_test = env_test.reset()
         return_epi_test = 0
         option_test = 0
-        # for t_test in range(int(args['max_episode_len'])):
+
         for t_test in range(T):
             if args['render_env']:
                 env_test.render()
@@ -86,10 +70,6 @@ def test(sess, env_test, args, agent, result_name):
             state_test = state_test2
             return_epi_test = return_epi_test + reward_test
 
-            # if t_test > 400 and option_test == 1:
-            #     print(t_test)
-            #     break
-
             if terminal_test:
                 break
 
@@ -112,7 +92,7 @@ def test(sess, env_test, args, agent, result_name):
 
 
 def main(args):
-    result_name = 'adInfoHRLTD3VAT_' + args['env'] \
+    result_name = 'adInfoHRLTD3_' + args['env'] \
                 + '_lambda_' + str(float(args['lambda'])) \
                 + '_c_reg_' + str(float(args['c_reg'])) \
                 + '_vat_noise_' + str(float(args['vat_noise'])) \
@@ -160,8 +140,8 @@ def main(args):
             action_bound = env.action_space.high
             # Ensure action bound is symmetric
             assert (env.action_space.high[0] == -env.action_space.low[0])
-            if args['method_name'] == 'adInfoHRLTD3VAT':
-                from adInfoHRL_TD3_vat_separate_agent import adInfoHRLTD3
+            if args['method_name'] == 'adInfoHRLTD3':
+                from adInfoHRL_agent import adInfoHRLTD3
                 agent = adInfoHRLTD3(sess, env, state_dim, action_dim, action_bound,
                                      #  , int(args['minibatch_size']),
                                      #  tau=float(args['tau']),
@@ -177,13 +157,6 @@ def main(args):
 
             model_path = "./Model/adInfoHRL/" + args['env'] + '/'
             agent.load_model(iteration=int(args['load_model_iter']), expname=result_name, model_path=model_path)
-
-            # if args['use_gym_monitor']:
-            #     if not args['render_env']:
-            #         env = wrappers.Monitor(
-            #                 env, args['monitor_dir'], video_callable=False, force=True)
-            #     else:
-            #         env = wrappers.Monitor(env, args['monitor_dir'], video_callable=lambda episode_id: episode_id==0, force=True)
 
             test(sess, env, args, agent, result_name)
 
@@ -220,7 +193,7 @@ if __name__ == '__main__':
     parser.add_argument('--summary-dir', help='directory for storing tensorboard info', default='./results/tf_adhrlTD3')
     parser.add_argument('--result-file', help='file name for storing results from multiple trials',
                         default='./results/trials/trials_adInfoHRLTD3')
-    parser.add_argument('--method-name', help='method name for recording the results', default='adInfoHRLTD3VAT')
+    parser.add_argument('--method-name', help='method name for recording the results', default='adInfoHRLTD3')
 
     parser.add_argument('--trial-num', help='number of trials', default=1)
     parser.add_argument('--trial-idx', help='index of trials', default=0)
@@ -228,7 +201,6 @@ if __name__ == '__main__':
 
     parser.set_defaults(total_step_num=1000)
     parser.set_defaults(sample_step_num=200)
-    parser.set_defaults(trial_num=1)
     parser.set_defaults(save_model_num=1000)
     parser.set_defaults(load_model_iter=201)
     parser.set_defaults(trial_idx=2)
